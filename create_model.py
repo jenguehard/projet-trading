@@ -10,6 +10,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, LSTM, Dropout
 import config
 import os
+import joblib
 
 username = config.mongo_user
 password = config.mongo_pw
@@ -20,20 +21,29 @@ connection = MongoClient('mongodb+srv://'+str(username)+':'+str(password)+'@'+st
 
 sp500 = pd.read_csv("constituents.csv")
 
+stocks = []
+
+for i in connection.list_database_names():
+  if i in sp500.Symbol.to_list():
+    stocks.append(i)
+
+
+print("Current companies' database available are the following :")
+print(stocks)
+
+print('')
+print("If the company you are looking for is absent, please update its data with load_data.py file.")
+print('')
+
+
 company = input("Please choose a S&P500 company:")
 
-if company not in sp500["Name"].to_list():
-    print("The S&P500 companies are the following: ")
-    print(sp500["Name"].to_list())
-    company = input("Please choose from this list: ")
+print("You have chosen " + str(company) + ".")
 
-print("You have chosen " + company + ".")
 
 # Based on the company chose, we get the correct symbol and then get the data from our Mongo database.
 
-symbol = sp500[sp500["Name"]==company]["Symbol"].reset_index()["Symbol"][0]
-
-print(symbol)
+symbol = str(company)
 
 def get_model(symbol):
     db = connection[symbol]
@@ -50,6 +60,9 @@ def get_model(symbol):
     # Scale the all of the data to be values between 0 and 1 
     scaler = MinMaxScaler(feature_range=(0, 1)) 
     scaled_data = scaler.fit_transform(dataset)
+    if not os.path.exists('model'):
+        os.makedirs('model')
+    joblib.dump(scaler, 'model/scaler_'+symbol+'.pkl') 
     # Create the scaled training data set 
     train_data = scaled_data[0:training_data_len  , : ]
     # Split the data into x_train and y_train data sets
@@ -95,7 +108,7 @@ def get_model(symbol):
     if not os.path.exists('model'):
         os.makedirs('model')
     # We save the model in the directory
-    model.save("model\\"+symbol+".h5")
+    model.save("model/"+symbol+".h5")
     print("The model has been saved.")
     return model
 
