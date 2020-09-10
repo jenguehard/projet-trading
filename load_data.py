@@ -2,16 +2,7 @@ import requests
 from pymongo import MongoClient
 import pandas as pd
 from bson import json_util
-import argparse
-
-ap = argparse.ArgumentParser()
-
-ap.add_argument("-api", "--api_key", required=True,
-	help="your Alpha Vantage API Key", type = str)
-ap.add_argument("-b", "--base", required=True,
-	help="your mongo base name", type = str)
-
-args = ap.parse_args()
+import config
 
 # The objective of this file is to upload the stock value of a company on a Mongo database.
 # The stock value is retrieved with Alpha Vantage API.
@@ -38,7 +29,7 @@ symbol = sp500[sp500["Name"]==company]["Symbol"].reset_index()["Symbol"][0]
 
 print(symbol)
 
-apikey = args.api_key
+apikey = config.api_key
 
 url = "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&outputsize=full&symbol="+symbol+"&apikey="+str(apikey)
 
@@ -73,11 +64,10 @@ for i in list(data.keys()):
 
 # We make our connection to our database thank to pymongo library.
 
-username = input("What is your MongoDB username ? ")
-password = input("What is your MongoDB password ? ")
+username = config.mongo_user
+password = config.mongo_pw
 
-mongobase = args.base
-print(mongobase)
+mongobase = config.mongo_db
 
 connection = MongoClient('mongodb+srv://'+str(username)+':'+str(password)+'@'+str(mongobase)+'.mongodb.net/test?authSource=admin&replicaSet=BaseDB-shard-0&readPreference=primary&appname=MongoDB%20Compass%20Community&ssl=true')
 # print(connection.list_database_names())
