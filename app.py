@@ -1,4 +1,4 @@
-# This file is bound to create the streamlit application.
+# This file is bound to create the streamlit application. This file can help find stock predictions of Dow Jones 30 companies and get notifications by email.
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,7 +19,11 @@ from email.mime.text import MIMEText
 
 st.title("Stock Predictions with LSTM")
 
-sp500 = pd.read_csv("constituents.csv")
+# Dow Jones 30 companies dataset.
+
+dj30 = pd.read_excel("dj30.xls")
+
+# MongoDB configuration.
 
 username = config.mongo_user
 password = config.mongo_pw
@@ -28,23 +32,28 @@ mongobase = config.mongo_db
 
 connection = MongoClient('mongodb+srv://'+str(username)+':'+str(password)+'@'+str(mongobase)+'.mongodb.net/test?authSource=admin&replicaSet=BaseDB-shard-0&readPreference=primary&appname=MongoDB%20Compass%20Community&ssl=true')
 
+# Choice of company
+
 stocks = []
 
 for i in connection.list_database_names():
-  if i in sp500.Symbol.to_list():
+  if i in dj30.ticker.to_list():
     stocks.append(i)
 
 stocks_name = []
 
 for i in stocks:
-    stocks_name.append(sp500[sp500["Symbol"]==i]["Name"].values[0])
+  stocks_name.append(dj30[dj30["ticker"]==i]["name"].values[0])
 
 option = st.selectbox('On which stock would you like a prediction ?', stocks_name)
 
-symbol = sp500[sp500["Name"]==option]["Symbol"].values[0]
+symbol = dj30[dj30["name"]==option]["ticker"].values[0]
+
 
 db = connection[symbol]
 collection = db.stock
+
+# Plot of company's stock.
 
 df =  pd.DataFrame(list(collection.find()))
 df._id = pd.to_datetime(df._id, infer_datetime_format=True)
@@ -60,7 +69,11 @@ plt.show()
 
 st.pyplot(plt)
 
+# Choice of number of days' prediction.
+
 number_of_days = st.slider("Days to be predicted :", 1, 10)
+
+# Import of models.
 
 model = keras.models.load_model('model/'+symbol+".h5")
 scaler = joblib.load('model/scaler_'+symbol+'.pkl')
@@ -93,6 +106,8 @@ def predictions(days):
     last_60_days = np.array(last_60_days_list)
   return predicted_prices
 
+# Get prediction.
+
 pred = round(predictions(number_of_days)[number_of_days-1], 2)
 
 e = '%Y-%m-%d %H:%M:%S'
@@ -115,12 +130,14 @@ stock_notif = st.multiselect("Which stocks are you interested in ?", stocks)
 
 notifications = []
 
+# Function to send email.
+
 def send_notif():
   if number_of_days == 1:
     email_subject = "Stock predictions for tomorrow."
   else :
     email_subject = "Stock predictions for the next "+ str(number_of_days) +" days."
-  email_body = "Hello,\n"
+  email_body = "Hello,"+"\n"
 
   for i in stock_notif:
     db = connection[symbol]
@@ -137,7 +154,7 @@ def send_notif():
     else:
       notif = "You should SELL !"
     
-    email_body += i + " - " + str(sp500[sp500["Symbol"]==i]["Name"].values[0]) + " : " + notif + " Last closing price was : " + str(df.close[-1])+"$. In "+str(number_of_days)+" days, the stock value will be "+str(pred)+"$.\n"
+    email_body += i + " - " + str(dj30[dj30["ticker"]==i]["name"].values[0]) + " : " + notif + " Last closing price was : " + str(df.close[-1])+"$. In "+str(number_of_days)+" days, the stock value will be "+str(pred)+"$."+"\n"
 
   server = smtplib.SMTP(config.email_smtp_server,config.email_smtp_port)
   server.starttls()

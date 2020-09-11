@@ -12,6 +12,10 @@ import config
 import os
 import joblib
 
+# This file will create a scaler and a LSTM model for each company of Dow Jones.
+
+# MongoDB configuration.
+
 username = config.mongo_user
 password = config.mongo_pw
 
@@ -19,33 +23,12 @@ mongobase = config.mongo_db
 
 connection = MongoClient('mongodb+srv://'+str(username)+':'+str(password)+'@'+str(mongobase)+'.mongodb.net/test?authSource=admin&replicaSet=BaseDB-shard-0&readPreference=primary&appname=MongoDB%20Compass%20Community&ssl=true')
 
-sp500 = pd.read_csv("constituents.csv")
-
 stocks = []
 
-for i in connection.list_database_names():
-  if i in sp500.Symbol.to_list():
-    stocks.append(i)
-
-
-print("Current companies' database available are the following :")
-print(stocks)
-
-print('')
-print("If the company you are looking for is absent, please update its data with load_data.py file.")
-print('')
-
-
-company = input("Please choose a S&P500 company:")
-
-print("You have chosen " + str(company) + ".")
-
-
-# Based on the company chose, we get the correct symbol and then get the data from our Mongo database.
-
-symbol = str(company)
+# Function to create the model.
 
 def get_model(symbol):
+    print(symbol)
     db = connection[symbol]
     collection = db.stock
     df =  pd.DataFrame(list(collection.find()))
@@ -84,7 +67,7 @@ def get_model(symbol):
     # Compile the model
     model.compile(optimizer='adam', loss='mean_squared_error')
     # Train the model
-    model.fit(x_train, y_train, batch_size=1, epochs=2)
+    model.fit(x_train, y_train, batch_size=1, epochs=1)
     # Test data set
     test_data = scaled_data[training_data_len - 60: , : ]
     # Create the x_test and y_test data sets
@@ -112,5 +95,16 @@ def get_model(symbol):
     print("The model has been saved.")
     return model
 
-if __name__ == "__main__":
-    get_model(symbol)
+# Import of Dow Jones 30 companies into dataset.
+
+dj30 = pd.read_excel("dj30.xls")
+
+for i in connection.list_database_names():
+  if i in dj30.ticker.to_list():
+    stocks.append(i)
+
+for symbol in stocks:
+    try:
+        get_model(symbol)
+    except:
+        pass
