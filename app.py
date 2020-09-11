@@ -13,8 +13,12 @@ from sklearn.preprocessing import MinMaxScaler
 from tensorflow import keras
 import joblib
 import datetime
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
-print(sys.executable)
+st.title("Stock Predictions with LSTM")
+
 sp500 = pd.read_csv("constituents.csv")
 
 username = config.mongo_user
@@ -55,8 +59,6 @@ plt.ylabel('Close Price USD ($)',fontsize=18)
 plt.show()
 
 st.pyplot(plt)
-
-scaler = MinMaxScaler(feature_range=(0, 1))
 
 number_of_days = st.slider("Days to be predicted :", 1, 10)
 
@@ -105,3 +107,55 @@ if df.close[-1] < pred:
   st.write("You should BUY !")
 else:
   st.write("You should SELL !")
+
+st.title("Notifications")
+
+stock_notif = st.multiselect("Which stocks are you interested in ?", stocks)
+
+
+notifications = []
+
+def send_notif():
+  if number_of_days == 1:
+    email_subject = "Stock predictions for tomorrow."
+  else :
+    email_subject = "Stock predictions for the next "+ str(number_of_days) +" days."
+  email_body = "Hello,\n"
+
+  for i in stock_notif:
+    db = connection[symbol]
+    collection = db.stock
+
+    df =  pd.DataFrame(list(collection.find()))
+    df._id = pd.to_datetime(df._id, infer_datetime_format=True)
+    df = df.sort_values("_id", ascending = True)
+    df = df.set_index("_id")
+    pred = round(predictions(number_of_days)[number_of_days-1], 2)
+
+    if df.close[-1] < pred:
+      notif = "You should BUY !"
+    else:
+      notif = "You should SELL !"
+    
+    email_body += i + " - " + str(sp500[sp500["Symbol"]==i]["Name"].values[0]) + " : " + notif + " Last closing price was : " + str(df.close[-1])+"$. In "+str(number_of_days)+" days, the stock value will be "+str(pred)+"$.\n"
+
+  server = smtplib.SMTP(config.email_smtp_server,config.email_smtp_port)
+  server.starttls()
+  server.login(config.email_sender_username, config.email_sender_password)
+
+  for recipient in config.email_recepients:
+    print(f"Sending email to {recipient}")
+    message = MIMEMultipart('alternative')
+    message['From'] = config.email_sender_account
+    message['To'] = recipient
+    message['Subject'] = email_subject
+    message.attach(MIMEText(email_body, 'html'))
+    text = message.as_string()
+    server.sendmail(config.email_sender_account,recipient,text)
+  #All emails sent, log out.
+  server.quit()
+  
+if st.button('Send notifications'):
+    send_notif()
+    st.write('Notifications have been sent.')
+
