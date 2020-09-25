@@ -4,6 +4,10 @@ This project was created to test LSTM on stock predictions of the Dow Jones.
 
 We will first get the data through AlphaVantage API's and stock it on MongoDB. The files required are the following :
 
+In order to get your AlphaVantage API's key, please use this [AlphaVantage API key](https://www.alphavantage.co/support/#api-key).
+
+You will also need to create a MongoDB account, please use this [MongoDB link](https://www.mongodb.com/try). You can retrieve your MongoDB credentials from your cluster.
+
 ```
 load_data_dj30.py
 dj30.xls
@@ -40,3 +44,5 @@ You can then use the ```app.py``` file with [Streamlit](https://www.streamlit.io
 ```
 streamlit run app.py
 ```
+
+Please note that this file will only work if your MongoDB's database is populated with the value of each stock. This is done with ```load_data_dj30.py``` file.
